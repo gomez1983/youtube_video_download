@@ -1,0 +1,94 @@
+================================================================================
+ YT/DL — YouTube Downloader Local
+================================================================================
+
+REQUISITOS
+----------
+- Python 3.x instalado (python.org)
+- Durante a instalação do Python, marque "Add Python to PATH"
+- ffmpeg instalado (necessário para mesclar vídeo e áudio)
+- VSCode (ou qualquer terminal)
+
+
+INSTALAÇÃO — PRIMEIRA VEZ
+--------------------------
+Abra o terminal (PowerShell ou Prompt de Comando) e rode:
+
+    pip install flask yt-dlp
+
+Para instalar o ffmpeg (necessário para download de vídeo):
+
+    winget install ffmpeg
+
+Após instalar o ffmpeg, feche e reabra o terminal.
+
+
+ARQUIVOS DO PROJETO
+-------------------
+- app.py        Servidor Flask (backend)
+- index.html    Interface web (frontend)
+- LEIAME.TXT    Este arquivo
+
+Os três arquivos devem estar na mesma pasta.
+
+
+COMO RODAR
+----------
+1. Abra o arquivo app.py no VSCode
+2. Pressione F5 ou clique no botão ▶ no canto superior direito
+3. Aguarde aparecer no terminal:
+
+       * Running on http://127.0.0.1:5000
+
+4. Abra o navegador e acesse:
+
+       http://localhost:5000
+
+IMPORTANTE: não abra o index.html diretamente pelo explorador de arquivos.
+Sempre acesse pelo endereço acima enquanto o servidor estiver rodando.
+
+CHECKLIST RÁPIDO (ANTES DE TESTAR)
+----------------------------------
+1. No terminal, rode: python app.py
+2. Confirme a mensagem: Running on http://127.0.0.1:5000
+3. Só depois abra o frontend (Live Server ou http://localhost:5000)
+4. Se aparecer "Servidor indisponível", o backend não está ativo.
+
+
+COMO USAR A INTERFACE
+---------------------
+1. Cole a URL do vídeo do YouTube no campo "URL do vídeo"
+2. Informe a pasta de destino (padrão: pasta Downloads do usuário)
+3. Escolha a qualidade do vídeo:
+     - Melhor disponível
+     - 1080p
+     - 720p
+     - 480p
+4. Ative o toggle "Só áudio (MP3)" se quiser extrair apenas o áudio
+5. Clique em "Baixar"
+6. Acompanhe o progresso na barra exibida na tela
+
+
+ENCERRANDO O SERVIDOR
+---------------------
+No terminal do VSCode, pressione CTRL+C.
+Após isso, a interface em http://localhost:5000 deixa de funcionar.
+
+
+PROBLEMAS COMUNS
+----------------
+"Não foi possível conectar ao servidor Flask"
+  → O servidor não está rodando. Execute o app.py conforme descrito acima.
+
+"ffmpeg is not installed"
+  → Rode: winget install ffmpeg
+  → Feche e reabra o terminal após a instalação.
+
+"Diretório inválido"
+  → Verifique se o caminho informado no campo de destino existe.
+
+A barra de progresso não avança
+  → Verifique a conexão com a internet.
+  → Verifique se a URL é válida e o vídeo está disponível publicamente.
+
+================================================================================
