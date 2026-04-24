@@ -185,5 +185,5 @@ Causa comum: backend não iniciado.
 
 ## Licença
 
-Uso pessoal/educacional (ajuste conforme sua necessidade).
+Uso pessoal/educacional.
 
