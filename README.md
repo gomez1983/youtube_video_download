@@ -88,6 +88,21 @@ python app.py
 http://127.0.0.1:5000
 ```
 
+### Atalho de inicializacao (sem alterar o codigo)
+
+Se quiser evitar iniciar tudo manualmente, use:
+
+```bat
+iniciar_projeto.bat
+```
+
+Esse atalho:
+- ativa o `.venv` automaticamente (se existir);
+- abre uma janela para rodar `python app.py`;
+- abre o navegador em `http://127.0.0.1:5000`.
+
+Para encerrar, feche a janela chamada **YT/DL Backend**.
+
 ### Opção com Live Server
 
 - O frontend pode rodar em outra porta (ex.: `5500`), e a API continua em `5000`.
