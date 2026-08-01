@@ -1,12 +1,14 @@
 ================================================================================
- YT/DL — YouTube Downloader Local
+ YT/DL — Downloader Local
 ================================================================================
 
 REQUISITOS
 ----------
 - Python 3.x instalado (python.org)
-- Durante a instalação do Python, marque "Add Python to PATH"
-- ffmpeg instalado (necessário para mesclar vídeo e áudio)
+  → Durante a instalação, marque "Add Python to PATH"
+- ffmpeg instalado via winget:
+      winget install ffmpeg
+  → Após instalar, feche e reabra o terminal
 - VSCode (ou qualquer terminal)
 
 
@@ -16,11 +18,9 @@ Abra o terminal (PowerShell ou Prompt de Comando) e rode:
 
     pip install flask yt-dlp
 
-Para instalar o ffmpeg (necessário para download de vídeo):
+Para atualizar o yt-dlp futuramente:
 
-    winget install ffmpeg
-
-Após instalar o ffmpeg, feche e reabra o terminal.
+    pip install -U yt-dlp
 
 
 ARQUIVOS DO PROJETO
@@ -47,42 +47,98 @@ COMO RODAR
 IMPORTANTE: não abra o index.html diretamente pelo explorador de arquivos.
 Sempre acesse pelo endereço acima enquanto o servidor estiver rodando.
 
-CHECKLIST RÁPIDO (ANTES DE TESTAR)
-----------------------------------
-1. No terminal, rode: python app.py
-2. Confirme a mensagem: Running on http://127.0.0.1:5000
-3. Só depois abra o frontend (Live Server ou http://localhost:5000)
-4. Se aparecer "Servidor indisponível", o backend não está ativo.
-
 
 COMO USAR A INTERFACE
 ---------------------
-1. Cole a URL do vídeo do YouTube no campo "URL do vídeo"
-2. Informe a pasta de destino (padrão: pasta Downloads do usuário)
-3. Escolha a qualidade do vídeo:
-     - Melhor disponível
-     - 1080p
-     - 720p
-     - 480p
-4. Ative o toggle "Só áudio (MP3)" se quiser extrair apenas o áudio
-5. Clique em "Baixar"
-6. Acompanhe o progresso na barra exibida na tela
+1. Cole a URL do vídeo no campo "URL do vídeo"
+   → O app preenche automaticamente o título, tamanho e miniatura do vídeo
+2. Clique em 📁 para escolher a pasta de destino
+   → Padrão: pasta Downloads do usuário
+3. Escolha a qualidade: Melhor disponível, 1080p, 720p ou 480p
+4. Escolha o formato do arquivo: MP4, MKV, WebM ou Original
+5. Ative "Só áudio (MP3)" se quiser extrair apenas o áudio
+6. Ative "Compatível com Premiere (H.264)" se for editar o vídeo no Premiere
+7. Clique em "Baixar" e acompanhe o progresso na barra exibida na tela
+
+O botão ☀/☽ no canto superior direito alterna entre modo claro e escuro.
 
 
-ENCERRANDO O SERVIDOR
----------------------
+SITES SUPORTADOS
+----------------
+O app suporta mais de 1000 sites via yt-dlp. Exemplos:
+  YouTube, Vimeo, Twitter/X, TikTok, Facebook, Instagram,
+  Twitch (VODs), SoundCloud, Reddit, Dailymotion, Globoplay
+
+Lista completa: https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md
+
+
+================================================================================
+ GLOBOPLAY — PASSO A PASSO
+================================================================================
+
+O Globoplay exige autenticação para liberar o download. Siga exatamente:
+
+PASSO 1 — Instalar a extensão de cookies
+  1. Abra o Chrome
+  2. Acesse a Chrome Web Store e instale a extensão:
+         "Get cookies.txt LOCALLY"
+
+PASSO 2 — Exportar os cookies do Globoplay
+  1. Acesse globoplay.globo.com e faça login com sua conta
+  2. Navegue até o vídeo que deseja baixar e deixe a página aberta
+  3. Clique no ícone da extensão "Get cookies.txt LOCALLY" na barra do Chrome
+  4. Clique em "Export" — o arquivo cookies.txt será baixado automaticamente
+  5. Salve o arquivo em uma pasta de fácil acesso (ex: C:\Users\Você\cookies.txt)
+
+PASSO 3 — Usar os cookies no app
+  1. Com o servidor rodando, acesse http://localhost:5000
+  2. Cole a URL do vídeo do Globoplay no campo "URL do vídeo"
+     → O título e miniatura podem não aparecer no info box (comportamento normal)
+  3. Clique em 📄 ao lado do campo "Arquivo cookies.txt"
+  4. Selecione o arquivo cookies.txt exportado no Passo 2
+  5. Ative o toggle "Compatível com Premiere (H.264)" se for editar no Premiere
+  6. Clique em "Baixar"
+
+OBSERVAÇÕES IMPORTANTES
+  → Não use o seletor "Cookies do navegador" para o Globoplay — use o cookies.txt
+  → O cookies.txt expira com o tempo. Se o download falhar com erro 401,
+    exporte um novo arquivo e tente novamente
+  → Com o toggle "Compatível com Premiere" ativado, o app gera dois arquivos:
+    o original e um "_premiere.mp4" já preparado para edição
+  → O Globoplay entrega os vídeos em H.264 + AAC — não há perda de qualidade
+    na conversão
+
+
+================================================================================
+ ENCERRANDO O SERVIDOR
+================================================================================
+
 No terminal do VSCode, pressione CTRL+C.
 Após isso, a interface em http://localhost:5000 deixa de funcionar.
 
 
-PROBLEMAS COMUNS
-----------------
+================================================================================
+ PROBLEMAS COMUNS
+================================================================================
+
 "Não foi possível conectar ao servidor Flask"
   → O servidor não está rodando. Execute o app.py conforme descrito acima.
 
 "ffmpeg is not installed"
   → Rode: winget install ffmpeg
-  → Feche e reabra o terminal após a instalação.
+  → Feche e reabra o VSCode após a instalação.
+
+"HTTP Error 401: Unauthorized" (Globoplay)
+  → Exporte um novo cookies.txt — o anterior expirou.
+  → Certifique-se de estar logado no Globoplay antes de exportar.
+
+"Could not copy Chrome cookie database"
+  → O Chrome está aberto e bloqueou o acesso direto aos cookies.
+  → Use o método cookies.txt descrito acima em vez do seletor de navegador.
+
+"O arquivo possui um tipo de compactação não suportada" (Premiere)
+  → Ative o toggle "Compatível com Premiere (H.264)" antes de baixar.
+  → Use o arquivo "_premiere.mp4" gerado na mesma pasta.
 
 "Diretório inválido"
   → Verifique se o caminho informado no campo de destino existe.
