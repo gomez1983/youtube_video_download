@@ -45,15 +45,16 @@ def make_progress_hook(download_id):
 
 
 def find_ffmpeg():
-    # Localiza o ffmpeg instalado via winget ou PATH
-    candidates = [
-        r"C:\Users\andre\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.2-full_build\bin\ffmpeg.exe",
-    ]
-    for path in candidates:
-        if os.path.isfile(path):
-            return path
-    # Tenta PATH do sistema
     import shutil
+    import glob
+
+    # Busca dinâmica em qualquer versão instalada via winget
+    pattern = r"C:\Users\andre\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg*\**\bin\ffmpeg.exe"
+    matches = glob.glob(pattern, recursive=True)
+    if matches:
+        return matches[0]
+
+    # Tenta PATH do sistema
     return shutil.which("ffmpeg") or "ffmpeg"
 
 

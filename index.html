@@ -302,6 +302,16 @@
     background: var(--border);
   }
   .info-box-thumb.visible { display: block; }
+  .info-box-embed {
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: var(--radius);
+    margin-bottom: 0.75rem;
+    border: none;
+    display: none;
+    background: #000;
+  }
+  .info-box-embed.visible { display: block; }
   .info-box-title {
     font-size: 0.8rem;
     color: var(--text);
@@ -351,6 +361,7 @@
   </div>
 
   <div class="info-box" id="info-box">
+    <iframe class="info-box-embed" id="info-embed" src="" allowfullscreen allow="autoplay; encrypted-media"></iframe>
     <img class="info-box-thumb" id="info-thumb" src="" alt="" />
     <div class="info-box-title" id="info-title"></div>
     <div class="info-box-meta">
@@ -473,6 +484,7 @@
   const infoSize     = document.getElementById('info-size');
   const infoDuration = document.getElementById('info-duration');
   const infoThumb    = document.getElementById('info-thumb');
+  const infoEmbed    = document.getElementById('info-embed');
   const btnBrowse    = document.getElementById('btn-browse');
   const browserCookiesSel = document.getElementById('browser-cookies');
   const cookiesFileInput  = document.getElementById('cookies-file');
@@ -527,6 +539,8 @@
     infoBox.classList.remove('visible');
     infoThumb.classList.remove('visible');
     infoThumb.src = '';
+    infoEmbed.classList.remove('visible');
+    infoEmbed.src = '';
     infoTimer = setTimeout(() => {
       if (urlInput.value.trim()) fetchInfo();
     }, 800);
@@ -536,6 +550,8 @@
     infoBox.classList.add('visible');
     infoThumb.classList.remove('visible');
     infoThumb.src = '';
+    infoEmbed.classList.remove('visible');
+    infoEmbed.src = '';
     infoTitle.textContent = 'Consultando...';
     infoSize.textContent = '—';
     infoDuration.textContent = '—';
@@ -566,14 +582,36 @@
         ? (data.approximate ? '~' : '') + fmtBytes(data.filesize)
         : 'Desconhecido';
       infoDuration.textContent = data.duration ? fmtDuration(data.duration) : '—';
-      if (data.thumbnail) {
+
+      // YouTube: embed player — demais sites: thumbnail
+      const youtubeId = extractYouTubeId(urlInput.value.trim());
+      if (youtubeId) {
+        infoEmbed.src = `https://www.youtube.com/embed/${youtubeId}`;
+        infoEmbed.classList.add('visible');
+        infoThumb.classList.remove('visible');
+      } else if (data.thumbnail) {
         infoThumb.src = data.thumbnail;
         infoThumb.onload = () => infoThumb.classList.add('visible');
         infoThumb.onerror = () => infoThumb.classList.remove('visible');
+        infoEmbed.classList.remove('visible');
       }
     } catch (e) {
       infoTitle.textContent = 'Servidor indisponível.';
     }
+  }
+
+  function extractYouTubeId(url) {
+    // Suporta youtube.com/watch?v=, youtu.be/, youtube.com/shorts/
+    const patterns = [
+      /[?&]v=([a-zA-Z0-9_-]{11})/,
+      /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+      /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+    ];
+    for (const p of patterns) {
+      const m = url.match(p);
+      if (m) return m[1];
+    }
+    return null;
   }
 
   function fmtBytes(bytes) {
