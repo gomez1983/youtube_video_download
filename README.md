@@ -23,6 +23,11 @@ O projeto foi feito para rodar localmente no seu computador, sem deploy em nuvem
 
 ## Funcionalidades principais
 
+- Download completo de playlists do YouTube:
+  - Detecção automática da playlist e contagem de vídeos.
+  - Opção para baixar a playlist inteira ou somente o vídeo individual em URLs mistas.
+  - Criação automática de subpasta com o nome da playlist e ordenação sequencial numérica dos arquivos.
+  - Acompanhamento do progresso item a item (ex: vídeo X de Y).
 - Download de vídeo com qualidade selecionável:
   - Melhor disponível
   - 1080p
@@ -178,22 +183,35 @@ Causa comum: backend não iniciado.
 - Instale com `winget install ffmpeg`
 - Reabra o terminal
 
-### Download não inicia
+### "Join this channel to get access to members-only content" / Conteúdo exclusivo
 
-- Verifique se a URL é válida/pública
-- Teste sem cookies primeiro
-- Se necessário, selecione o navegador correto em "Cookies do navegador"
+- O vídeo ou um dos vídeos da playlist requer assinatura de membro do canal (*"Seja Membro"*).
+- Em playlists, o app **pula automaticamente** esses vídeos restritos para não travar o restante do download.
+- Se você **for membro** do canal, selecione o navegador em que você está logado no seletor **"Cookies do navegador"** ou forneça seu arquivo `cookies.txt`.
 
-### Pasta inválida
+---
 
-- Informe um caminho existente ou use o botão de pasta da interface
+## Conteúdos e Playlists Exclusivos para Membros (Seja Membro)
+
+O YouTube bloqueia o acesso anônimo a vídeos exclusivos para membros de canais. O YT/DL lida com isso das seguintes formas:
+
+1. **Em Playlists com vídeos mistos (públicos e exclusivos):**
+   - O app não interrompe o download ao encontrar um vídeo restrito.
+   - Os vídeos exclusivos ou indisponíveis são pulados automaticamente, e todos os vídeos públicos continuam sendo baixados normalmente.
+   - Ao finalizar a playlist, o app informa se algum vídeo foi pulado.
+
+2. **Como baixar vídeos exclusivos se você é assinante/membro:**
+   - Certifique-se de estar conectado à sua conta do YouTube em seu navegador (Chrome, Edge, Firefox, Brave ou Opera).
+   - Na interface do aplicativo, no campo **"Cookies do navegador"**, selecione o navegador correspondente.
+   - Alternativamente, exporte os cookies da sua sessão para um arquivo `cookies.txt` e aponte o arquivo no campo **"Arquivo cookies.txt"**.
+   - Com a autenticação ativa, o aplicativo terá permissão de membro e baixará os conteúdos exclusivos com sucesso.
 
 ---
 
 ## Observações importantes
 
 - O app é local, não precisa de banco de dados.
-- O uso de cookies do navegador pode ser necessário para conteúdos privados/restritos.
+- O uso de cookies do navegador pode ser necessário para conteúdos privados/restritos (como vídeos de membros ou Instagram Stories).
 - O download depende das regras e disponibilidade da plataforma de origem.
 
 ---

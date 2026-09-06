@@ -2,6 +2,20 @@
 
 ---
 
+## [1.8.0] — Suporte a Download de Playlists do YouTube
+
+### Adicionado
+- Detecção automática de playlists do YouTube via extração rápida (`extract_flat`) sem lentidão ou travamentos
+- Card de opções de playlist exibido dinamicamente na interface ao colar URL de playlist
+- Suporte a links mistos (`watch?v=...&list=...`): seletor para baixar a playlist inteira ou apenas o vídeo isolado
+- Opção para criar automaticamente uma subpasta com o nome da playlist (`output_dir/Nome_da_Playlist/01 - Titulo.mp4`)
+- Numeração sequencial de faixas/vídeos na playlist (`%(playlist_index)02d - %(title)s.%(ext)s`)
+- Rastreamento em tempo real do progresso de múltiplos vídeos da playlist (ex: "▶ [3/20] Título do Vídeo", contador de itens e status por vídeo)
+- Compatibilidade do recurso H.264/Premiere mantida para cada vídeo processado da playlist
+- Badge visual estilizado "Playlist Detectada" com contagem de vídeos
+
+---
+
 ## [1.7.0] — Player embed e detecção dinâmica do ffmpeg
 
 ### Adicionado

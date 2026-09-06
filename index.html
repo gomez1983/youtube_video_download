@@ -345,6 +345,55 @@
     pointer-events: none;
     font-size: 0.8rem;
   }
+
+  /* Playlist UI */
+  .playlist-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(212, 247, 0, 0.12);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius);
+    margin-bottom: 0.6rem;
+    text-transform: uppercase;
+  }
+  :root.light .playlist-badge {
+    background: rgba(90, 122, 0, 0.12);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .playlist-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+    transition: var(--transition-theme);
+  }
+  .playlist-card-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+  }
+
+  .progress-current-item {
+    font-size: 0.75rem;
+    color: var(--text);
+    margin-bottom: 0.6rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 </style>
 </head>
 <body>
@@ -356,17 +405,42 @@
   </header>
 
   <div class="field">
-    <label for="url">URL do vídeo</label>
-    <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=..." />
+    <label for="url">URL do vídeo ou playlist</label>
+    <input type="text" id="url" placeholder="https://www.youtube.com/playlist?list=... ou /watch?v=..." />
   </div>
 
   <div class="info-box" id="info-box">
+    <div class="playlist-badge" id="playlist-badge" style="display:none;">
+      <span>📋</span> <span id="playlist-badge-text">Playlist Detectada</span>
+    </div>
     <iframe class="info-box-embed" id="info-embed" src="" allowfullscreen allow="autoplay; encrypted-media"></iframe>
     <img class="info-box-thumb" id="info-thumb" src="" alt="" />
     <div class="info-box-title" id="info-title"></div>
     <div class="info-box-meta">
-      <span>Tamanho: <b id="info-size">—</b></span>
-      <span>Duração: <b id="info-duration">—</b></span>
+      <span id="meta-size-wrapper">Tamanho: <b id="info-size">—</b></span>
+      <span id="meta-duration-wrapper">Duração: <b id="info-duration">—</b></span>
+      <span id="meta-count-wrapper" style="display:none;">Total de vídeos: <b id="info-count">—</b></span>
+    </div>
+  </div>
+
+  <div class="playlist-card" id="playlist-card" style="display:none;">
+    <div class="playlist-card-title">Opções da Playlist</div>
+    <div class="field" id="playlist-mode-field" style="margin-bottom:0.75rem;">
+      <label for="playlist-mode">O que deseja baixar?</label>
+      <div class="select-wrap">
+        <select id="playlist-mode">
+          <option value="playlist">Baixar playlist inteira</option>
+          <option value="single">Baixar apenas este vídeo</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0;">
+      <label class="toggle" for="playlist-subfolder">
+        <input type="checkbox" id="playlist-subfolder" checked />
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+      <span class="toggle-label">Criar subpasta com o nome da playlist</span>
     </div>
   </div>
 
@@ -450,12 +524,14 @@
       <span class="progress-status" id="progress-status">Aguardando...</span>
       <span class="progress-percent" id="progress-percent">0%</span>
     </div>
+    <div class="progress-current-item" id="progress-current-item" style="display:none;"></div>
     <div class="progress-bar-track">
       <div class="progress-bar-fill" id="progress-bar"></div>
     </div>
     <div class="progress-meta">
       <span>Velocidade: <b id="meta-speed">—</b></span>
       <span>ETA: <b id="meta-eta">—</b></span>
+      <span id="meta-playlist-progress" style="display:none;">Progresso: <b id="meta-playlist-item">—</b></span>
     </div>
   </div>
 
@@ -490,6 +566,44 @@
   const cookiesFileInput  = document.getElementById('cookies-file');
   const btnBrowseCookies  = document.getElementById('btn-browse-cookies');
   const h264CompatToggle  = document.getElementById('h264-compat');
+
+  // Elementos de Playlist
+  const playlistBadge        = document.getElementById('playlist-badge');
+  const playlistBadgeText    = document.getElementById('playlist-badge-text');
+  const playlistCard         = document.getElementById('playlist-card');
+  const playlistModeField    = document.getElementById('playlist-mode-field');
+  const playlistModeSel      = document.getElementById('playlist-mode');
+  const playlistSubfolderToggle = document.getElementById('playlist-subfolder');
+  const metaSizeWrapper      = document.getElementById('meta-size-wrapper');
+  const metaDurationWrapper  = document.getElementById('meta-duration-wrapper');
+  const metaCountWrapper     = document.getElementById('meta-count-wrapper');
+  const infoCount            = document.getElementById('info-count');
+  const progressCurrentItem  = document.getElementById('progress-current-item');
+  const metaPlaylistProgress = document.getElementById('meta-playlist-progress');
+  const metaPlaylistItem     = document.getElementById('meta-playlist-item');
+
+  let currentPlaylistData = null;
+
+  function resetPlaylistState() {
+    playlistBadge.style.display = 'none';
+    playlistCard.style.display = 'none';
+    metaCountWrapper.style.display = 'none';
+    metaSizeWrapper.style.display = '';
+    metaDurationWrapper.style.display = '';
+    progressCurrentItem.style.display = 'none';
+    metaPlaylistProgress.style.display = 'none';
+    btn.textContent = 'Baixar';
+    currentPlaylistData = null;
+  }
+
+  // Alternância do modo playlist vs vídeo único
+  playlistModeSel.addEventListener('change', () => {
+    if (playlistModeSel.value === 'single') {
+      fetchInfo(true);
+    } else {
+      fetchInfo(false);
+    }
+  });
 
   // Seleção de arquivo cookies.txt via janela nativa
   btnBrowseCookies.addEventListener('click', async () => {
@@ -527,10 +641,12 @@
     formatField.style.pointerEvents = disabled ? 'none' : '';
     containerField.style.opacity = disabled ? '0.3' : '1';
     containerField.style.pointerEvents = disabled ? 'none' : '';
-    if (urlInput.value.trim()) fetchInfo();
+    if (urlInput.value.trim()) fetchInfo(playlistModeSel.value === 'single');
   });
 
-  formatSel.addEventListener('change', () => { if (urlInput.value.trim()) fetchInfo(); });
+  formatSel.addEventListener('change', () => {
+    if (urlInput.value.trim()) fetchInfo(playlistModeSel.value === 'single');
+  });
 
   // Busca info do vídeo ao sair do campo URL
   let infoTimer = null;
@@ -541,12 +657,13 @@
     infoThumb.src = '';
     infoEmbed.classList.remove('visible');
     infoEmbed.src = '';
+    resetPlaylistState();
     infoTimer = setTimeout(() => {
       if (urlInput.value.trim()) fetchInfo();
     }, 800);
   });
 
-  async function fetchInfo() {
+  async function fetchInfo(forceSingle = false) {
     infoBox.classList.add('visible');
     infoThumb.classList.remove('visible');
     infoThumb.src = '';
@@ -555,6 +672,11 @@
     infoTitle.textContent = 'Consultando...';
     infoSize.textContent = '—';
     infoDuration.textContent = '—';
+    infoCount.textContent = '—';
+
+    if (!forceSingle) {
+      resetPlaylistState();
+    }
 
     try {
       const res = await fetch('/info', {
@@ -566,6 +688,7 @@
           audio_only: audioToggle.checked,
           browser_cookies: browserCookiesSel.value,
           cookies_file: cookiesFileInput.value.trim(),
+          force_single: forceSingle,
         }),
       });
       const data = await res.json();
@@ -577,23 +700,66 @@
           : '—';
         return;
       }
-      infoTitle.textContent = data.title || '—';
-      infoSize.textContent = data.filesize
-        ? (data.approximate ? '~' : '') + fmtBytes(data.filesize)
-        : 'Desconhecido';
-      infoDuration.textContent = data.duration ? fmtDuration(data.duration) : '—';
 
-      // YouTube: embed player — demais sites: thumbnail
-      const youtubeId = extractYouTubeId(urlInput.value.trim());
-      if (youtubeId) {
-        infoEmbed.src = `https://www.youtube.com/embed/${youtubeId}`;
-        infoEmbed.classList.add('visible');
-        infoThumb.classList.remove('visible');
-      } else if (data.thumbnail) {
-        infoThumb.src = data.thumbnail;
-        infoThumb.onload = () => infoThumb.classList.add('visible');
-        infoThumb.onerror = () => infoThumb.classList.remove('visible');
-        infoEmbed.classList.remove('visible');
+      if (data.is_playlist) {
+        currentPlaylistData = data;
+        playlistBadge.style.display = 'inline-flex';
+        playlistBadgeText.textContent = `Playlist (${data.playlist_count} vídeos)`;
+        playlistCard.style.display = 'block';
+
+        if (data.has_single_video) {
+          playlistModeField.style.display = 'block';
+        } else {
+          playlistModeField.style.display = 'none';
+          playlistModeSel.value = 'playlist';
+        }
+
+        infoTitle.textContent = data.title || 'Playlist';
+        metaSizeWrapper.style.display = 'none';
+        metaDurationWrapper.style.display = 'none';
+        metaCountWrapper.style.display = '';
+        infoCount.textContent = `${data.playlist_count} vídeos`;
+
+        if (playlistModeSel.value === 'playlist') {
+          btn.textContent = `Baixar Playlist (${data.playlist_count} vídeos)`;
+        } else {
+          btn.textContent = 'Baixar Vídeo';
+        }
+
+        if (data.thumbnail) {
+          infoThumb.src = data.thumbnail;
+          infoThumb.onload = () => infoThumb.classList.add('visible');
+          infoThumb.onerror = () => infoThumb.classList.remove('visible');
+          infoEmbed.classList.remove('visible');
+        }
+      } else {
+        infoTitle.textContent = data.title || '—';
+        metaSizeWrapper.style.display = '';
+        metaDurationWrapper.style.display = '';
+        metaCountWrapper.style.display = 'none';
+
+        infoSize.textContent = data.filesize
+          ? (data.approximate ? '~' : '') + fmtBytes(data.filesize)
+          : 'Desconhecido';
+        infoDuration.textContent = data.duration ? fmtDuration(data.duration) : '—';
+
+        if (currentPlaylistData) {
+          btn.textContent = 'Baixar Vídeo';
+        } else {
+          btn.textContent = 'Baixar';
+        }
+
+        const youtubeId = extractYouTubeId(urlInput.value.trim());
+        if (youtubeId) {
+          infoEmbed.src = `https://www.youtube.com/embed/${youtubeId}`;
+          infoEmbed.classList.add('visible');
+          infoThumb.classList.remove('visible');
+        } else if (data.thumbnail) {
+          infoThumb.src = data.thumbnail;
+          infoThumb.onload = () => infoThumb.classList.add('visible');
+          infoThumb.onerror = () => infoThumb.classList.remove('visible');
+          infoEmbed.classList.remove('visible');
+        }
       }
     } catch (e) {
       infoTitle.textContent = 'Servidor indisponível.';
@@ -654,11 +820,35 @@
         const data = await res.json();
 
         if (data.status === 'downloading') {
-          progressStat.textContent = 'Baixando...';
+          if (data.is_playlist) {
+            progressStat.textContent = 'Baixando playlist...';
+            if (data.playlist_index) {
+              metaPlaylistProgress.style.display = '';
+              metaPlaylistItem.textContent = `${data.playlist_index} de ${data.playlist_count || '?'}`;
+            }
+            if (data.video_title) {
+              progressCurrentItem.style.display = 'block';
+              progressCurrentItem.textContent = `▶ [${data.playlist_index || '?'}/${data.playlist_count || '?'}] ${data.video_title}`;
+            }
+          } else {
+            progressStat.textContent = 'Baixando...';
+            metaPlaylistProgress.style.display = 'none';
+            progressCurrentItem.style.display = 'none';
+          }
           progressBar.style.width = data.percent + '%';
           progressPct.textContent = data.percent + '%';
           metaSpeed.textContent = data.speed + ' KB/s';
           metaEta.textContent = fmtEta(data.eta);
+        } else if (data.status === 'item_finished') {
+          if (data.is_playlist) {
+            progressStat.textContent = `Vídeo ${data.playlist_index || '?'} de ${data.playlist_count || '?'} concluído`;
+            if (data.video_title) {
+              progressCurrentItem.style.display = 'block';
+              progressCurrentItem.textContent = `✓ [${data.playlist_index || '?'}/${data.playlist_count || '?'}] ${data.video_title}`;
+            }
+          }
+          progressBar.style.width = '100%';
+          progressPct.textContent = '100%';
         } else if (data.status === 'remuxing') {
           progressStat.textContent = 'Convertendo para Premiere...';
           progressBar.style.width = '100%';
@@ -672,14 +862,18 @@
           progressStat.textContent = 'Concluído';
           metaSpeed.textContent = '—';
           metaEta.textContent = '—';
+          progressCurrentItem.style.display = 'none';
+          metaPlaylistProgress.style.display = 'none';
           btn.disabled = false;
-          showMsg('Download concluído.', 'success');
+          showMsg(data.message || 'Download concluído com sucesso.', 'success');
         } else if (data.status === 'error') {
           clearInterval(pollTimer);
           btn.disabled = false;
+          progressCurrentItem.style.display = 'none';
+          metaPlaylistProgress.style.display = 'none';
           showMsg('Erro: ' + data.message, 'error');
         } else if (data.status === 'starting') {
-          progressStat.textContent = 'Iniciando...';
+          progressStat.textContent = data.is_playlist ? 'Iniciando playlist...' : 'Iniciando...';
         }
       } catch (e) {
         clearInterval(pollTimer);
@@ -694,13 +888,17 @@
     const url = urlInput.value.trim();
     if (!url) { showMsg('Informe a URL.', 'error'); return; }
 
+    const isPlaylistMode = (playlistCard.style.display !== 'none' && playlistModeSel.value === 'playlist');
+
     btn.disabled = true;
     progressBox.classList.add('visible');
     progressBar.style.width = '0%';
     progressPct.textContent = '0%';
-    progressStat.textContent = 'Iniciando...';
+    progressStat.textContent = isPlaylistMode ? 'Iniciando playlist...' : 'Iniciando...';
     metaSpeed.textContent = '—';
     metaEta.textContent = '—';
+    progressCurrentItem.style.display = 'none';
+    metaPlaylistProgress.style.display = 'none';
 
     try {
       const res = await fetch('/download', {
@@ -715,6 +913,8 @@
           browser_cookies: browserCookiesSel.value,
           cookies_file: cookiesFileInput.value.trim(),
           h264_compat: h264CompatToggle.checked,
+          download_playlist: isPlaylistMode,
+          create_subfolder: playlistSubfolderToggle.checked,
         }),
       });
       const data = await res.json();

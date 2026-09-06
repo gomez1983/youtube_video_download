@@ -143,8 +143,9 @@ Após isso, a interface em http://localhost:5000 deixa de funcionar.
 "Diretório inválido"
   → Verifique se o caminho informado no campo de destino existe.
 
-A barra de progresso não avança
-  → Verifique a conexão com a internet.
-  → Verifique se a URL é válida e o vídeo está disponível publicamente.
+"Join this channel to get access to members-only content"
+  → O vídeo é exclusivo para membros do canal (Seja Membro).
+  → Em playlists, esses vídeos são pulados automaticamente para não travar o restante.
+  → Se você for membro, selecione seu navegador em "Cookies do navegador" ou use um cookies.txt com sua conta logada.
 
 ================================================================================

@@ -1,4 +1,5 @@
 import os
+import re
 import threading
 import tkinter as tk
 from tkinter import filedialog
@@ -13,9 +14,14 @@ progress_data = {}
 progress_lock = threading.Lock()
 
 
-def make_progress_hook(download_id):
+def make_progress_hook(download_id, is_playlist=False):
     def hook(d):
         with progress_lock:
+            info = d.get("info_dict", {})
+            p_index = info.get("playlist_index")
+            p_count = info.get("playlist_count") or info.get("n_entries")
+            video_title = info.get("title") or os.path.basename(d.get("filename", ""))
+
             if d["status"] == "downloading":
                 total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
                 downloaded = d.get("downloaded_bytes", 0)
@@ -28,13 +34,29 @@ def make_progress_hook(download_id):
                     "speed": round(speed / 1024, 1) if speed else 0,  # KB/s
                     "eta": eta,
                     "filename": d.get("filename", ""),
+                    "is_playlist": is_playlist,
+                    "playlist_index": p_index,
+                    "playlist_count": p_count,
+                    "video_title": video_title,
                 }
             elif d["status"] == "finished":
-                progress_data[download_id] = {
-                    "status": "finished",
-                    "percent": 100,
-                    "filename": d.get("filename", ""),
-                }
+                if not is_playlist:
+                    progress_data[download_id] = {
+                        "status": "finished",
+                        "percent": 100,
+                        "filename": d.get("filename", ""),
+                        "is_playlist": False,
+                    }
+                else:
+                    progress_data[download_id] = {
+                        "status": "item_finished",
+                        "percent": 100,
+                        "filename": d.get("filename", ""),
+                        "is_playlist": True,
+                        "playlist_index": p_index,
+                        "playlist_count": p_count,
+                        "video_title": video_title,
+                    }
             elif d["status"] == "error":
                 progress_data[download_id] = {
                     "status": "error",
@@ -77,18 +99,57 @@ def remux_to_mp4(input_path, ffmpeg_bin):
     return None
 
 
-def run_download(download_id, url, output_dir, fmt, audio_only, container, browser_cookies, cookies_file, h264_compat):
-    with progress_lock:
-        progress_data[download_id] = {"status": "starting", "percent": 0}
+class YDLLogger:
+    def __init__(self):
+        self.errors = []
+        self.warnings = []
 
-    outtmpl = os.path.join(output_dir, "%(title)s.%(ext)s")
+    def debug(self, msg):
+        pass
+
+    def warning(self, msg):
+        self.warnings.append(msg)
+
+    def error(self, msg):
+        clean = re.sub(r"\x1b\[[0-9;]*m", "", str(msg)).strip()
+        self.errors.append(clean)
+
+
+def clean_error_message(err_str):
+    clean = re.sub(r"\x1b\[[0-9;]*m", "", str(err_str)).strip()
+    if "Join this channel to get access to members-only content" in clean:
+        return "Vídeo exclusivo para membros do canal. Se você for membro, selecione seu navegador em 'Cookies do navegador' ou importe um arquivo cookies.txt."
+    return clean
+
+
+def run_download(download_id, url, output_dir, fmt, audio_only, container, browser_cookies, cookies_file, h264_compat, download_playlist=False, create_subfolder=True):
+    with progress_lock:
+        progress_data[download_id] = {
+            "status": "starting",
+            "percent": 0,
+            "is_playlist": download_playlist,
+        }
+
+    if download_playlist:
+        if create_subfolder:
+            outtmpl = os.path.join(output_dir, "%(playlist_title,playlist)s", "%(playlist_index)02d - %(title)s.%(ext)s")
+        else:
+            outtmpl = os.path.join(output_dir, "%(playlist_index)02d - %(title)s.%(ext)s")
+    else:
+        outtmpl = os.path.join(output_dir, "%(title)s.%(ext)s")
+
+    ydl_logger = YDLLogger()
 
     ydl_opts = {
         "outtmpl": outtmpl,
-        "progress_hooks": [make_progress_hook(download_id)],
+        "progress_hooks": [make_progress_hook(download_id, is_playlist=download_playlist)],
         "quiet": True,
         "no_warnings": True,
         "ffmpeg_location": os.path.dirname(find_ffmpeg()),
+        "noplaylist": not download_playlist,
+        "no_color": True,
+        "ignoreerrors": True if download_playlist else False,
+        "logger": ydl_logger,
     }
 
     # cookies_file tem prioridade sobre browser_cookies
@@ -113,43 +174,45 @@ def run_download(download_id, url, output_dir, fmt, audio_only, container, brows
             ydl_opts["format"] = fmt
 
         if h264_compat:
-            # Mantém o download normal — faz remux via ffmpeg depois
             pass
         else:
             # container define o formato do arquivo final (mp4, mkv, webm, original)
             if container != "original":
                 ydl_opts["merge_output_format"] = container
 
+    if h264_compat and not audio_only:
+        ffmpeg_bin = find_ffmpeg()
+        def remux_hook(filename):
+            with progress_lock:
+                progress_data[download_id]["status"] = "remuxing"
+            remux_to_mp4(filename, ffmpeg_bin)
+
+        ydl_opts["post_hooks"] = [remux_hook]
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
 
-            if h264_compat and not audio_only:
-                # Localiza o arquivo baixado
-                filename = ydl.prepare_filename(info)
-                # yt-dlp pode ter mudado a extensão
-                if not os.path.isfile(filename):
-                    base, _ = os.path.splitext(filename)
-                    for ext in [".mp4", ".mkv", ".webm", ".ts", ".mpeg"]:
-                        if os.path.isfile(base + ext):
-                            filename = base + ext
-                            break
-
-                with progress_lock:
-                    progress_data[download_id] = {"status": "remuxing", "percent": 100}
-
-                ffmpeg_bin = find_ffmpeg()
-                output = remux_to_mp4(filename, ffmpeg_bin)
-
-                if output:
-                    with progress_lock:
-                        progress_data[download_id] = {"status": "finished", "percent": 100, "filename": output}
+            with progress_lock:
+                if download_playlist:
+                    skipped_count = len(ydl_logger.errors)
+                    if skipped_count > 0:
+                        msg = f"Download da playlist concluído! ({skipped_count} vídeo(s) exclusivo(s) para membros ou indisponíveis foram pulados)."
+                    else:
+                        msg = "Download da playlist concluído com sucesso!"
                 else:
-                    with progress_lock:
-                        progress_data[download_id] = {"status": "error", "message": "Remux falhou. O arquivo original foi mantido."}
+                    msg = "Download concluído!"
+
+                progress_data[download_id] = {
+                    "status": "finished",
+                    "percent": 100,
+                    "is_playlist": download_playlist,
+                    "filename": ydl.prepare_filename(info) if (not download_playlist and info) else "",
+                    "message": msg,
+                }
     except Exception as e:
         with progress_lock:
-            progress_data[download_id] = {"status": "error", "message": str(e)}
+            progress_data[download_id] = {"status": "error", "message": clean_error_message(str(e))}
 
 
 @app.route("/browse-file", methods=["POST"])
@@ -188,16 +251,63 @@ def browse_folder():
 
 @app.route("/info", methods=["POST"])
 def get_info():
-    data = request.get_json()
+    data = request.get_json() or {}
     url = data.get("url", "").strip()
     fmt = data.get("format", "best")
     audio_only = data.get("audio_only", False)
     browser_cookies = data.get("browser_cookies", "").strip()
     cookies_file = data.get("cookies_file", "").strip()
+    force_single = data.get("force_single", False)
 
     if not url:
         return jsonify({"error": "URL não informada"}), 400
 
+    # 1. Detecção rápida de playlist quando aplicável
+    is_playlist_candidate = ("list=" in url or "/playlist" in url)
+    if is_playlist_candidate and not force_single:
+        ydl_opts_flat = {
+            "extract_flat": True,
+            "quiet": True,
+            "no_warnings": True,
+            "skip_download": True,
+            "ffmpeg_location": os.path.dirname(find_ffmpeg()),
+        }
+        if cookies_file and os.path.isfile(cookies_file):
+            ydl_opts_flat["cookiefile"] = cookies_file
+        elif browser_cookies:
+            ydl_opts_flat["cookiesfrombrowser"] = (browser_cookies,)
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts_flat) as ydl:
+                info = ydl.extract_info(url, download=False)
+                if info.get("_type") == "playlist" or info.get("entries"):
+                    entries = list(info.get("entries") or [])
+                    playlist_count = info.get("playlist_count") or len(entries)
+                    has_single_video = bool(re.search(r"(?:[?&]v=|youtu\.be/|/shorts/)([a-zA-Z0-9_-]{11})", url))
+
+                    thumbnail = ""
+                    if entries and entries[0]:
+                        first = entries[0]
+                        thumbnail = first.get("thumbnail") or (first.get("thumbnails") and first.get("thumbnails")[0].get("url")) or ""
+                    if not thumbnail and info.get("thumbnails"):
+                        thumbnail = info.get("thumbnails")[0].get("url")
+
+                    return jsonify({
+                        "is_playlist": True,
+                        "has_single_video": has_single_video,
+                        "title": info.get("title") or "Playlist",
+                        "video_title": entries[0].get("title", "") if has_single_video and entries else "",
+                        "playlist_count": playlist_count,
+                        "thumbnail": thumbnail,
+                        "playlist_id": info.get("id", ""),
+                        "duration": None,
+                        "filesize": None,
+                    })
+        except Exception:
+            # Fallback para consulta padrão se a extração flat falhar
+            pass
+
+    # 2. Consulta padrão de vídeo único
     if audio_only:
         ydl_fmt = "bestaudio/best"
     else:
@@ -209,6 +319,7 @@ def get_info():
         "no_warnings": True,
         "skip_download": True,
         "ffmpeg_location": os.path.dirname(find_ffmpeg()),
+        "noplaylist": True,
     }
 
     # cookies_file tem prioridade sobre browser_cookies
@@ -235,6 +346,7 @@ def get_info():
                         approximate = True
 
             return jsonify({
+                "is_playlist": False,
                 "title": title,
                 "duration": duration,
                 "filesize": total_bytes,
@@ -242,7 +354,7 @@ def get_info():
                 "thumbnail": info.get("thumbnail", ""),
             })
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": clean_error_message(str(e))}), 400
 
 
 @app.route("/")
@@ -252,7 +364,7 @@ def index():
 
 @app.route("/download", methods=["POST"])
 def start_download():
-    data = request.get_json()
+    data = request.get_json() or {}
     url = data.get("url", "").strip()
     output_dir = data.get("output_dir", "").strip() or os.path.expanduser("~/Downloads")
     fmt = data.get("format", "best")
@@ -261,6 +373,8 @@ def start_download():
     browser_cookies = data.get("browser_cookies", "").strip()
     cookies_file = data.get("cookies_file", "").strip()
     h264_compat = data.get("h264_compat", False)
+    download_playlist = data.get("download_playlist", False)
+    create_subfolder = data.get("create_subfolder", True)
 
     if not url:
         return jsonify({"error": "URL não informada"}), 400
@@ -276,7 +390,7 @@ def start_download():
 
     thread = threading.Thread(
         target=run_download,
-        args=(download_id, url, output_dir, fmt, audio_only, container, browser_cookies, cookies_file, h264_compat),
+        args=(download_id, url, output_dir, fmt, audio_only, container, browser_cookies, cookies_file, h264_compat, download_playlist, create_subfolder),
         daemon=True,
     )
     thread.start()
