@@ -119,6 +119,8 @@ def clean_error_message(err_str):
     clean = re.sub(r"\x1b\[[0-9;]*m", "", str(err_str)).strip()
     if "Join this channel to get access to members-only content" in clean:
         return "Vídeo exclusivo para membros do canal. Se você for membro, selecione seu navegador em 'Cookies do navegador' ou importe um arquivo cookies.txt."
+    if "Unable to extract universal data for rehydration" in clean:
+        return "Erro ao extrair vídeo do TikTok. Atualize o pacote yt-dlp (.venv/Scripts/python.exe -m pip install -U yt-dlp curl-cffi) e reinicie o servidor."
     return clean
 
 

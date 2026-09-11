@@ -21,7 +21,7 @@ if not defined PYTHON_EXE (
 )
 
 REM Valida dependencias antes de abrir backend/browser
-"%PYTHON_EXE%" -c "import flask, yt_dlp" >nul 2>nul
+"%PYTHON_EXE%" -c "import flask, yt_dlp, curl_cffi" >nul 2>nul
 if errorlevel 1 (
     echo.
     echo Dependencias ausentes no ambiente Python.
